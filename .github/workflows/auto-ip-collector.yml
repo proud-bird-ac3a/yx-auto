@@ -3,13 +3,13 @@ name: Auto IP Collector
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'   # 每天 UTC 0:00 运行（北京时间 8:00）
+    - cron: '0 */4 * * *'  # 每4小时运行一次
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # 明确给写入权限，独立仓库一般默认即可
+      contents: write
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v3
@@ -20,15 +20,12 @@ jobs:
           python-version: '3.11'
 
       - name: 📦 Install dependencies
-        run: |
-          pip install requests beautifulsoup4
-          sT=$(TZ=UTC-8 date +'%S')
-          echo "update_version=$(TZ=UTC-8 date +'%Y-%m-%d %H:%M'):${sT}" >> ${GITHUB_ENV}
+        run: pip install requests beautifulsoup4
 
       - name: 🧠 Step 1 - Collect raw IPs
         run: python collect_raw.py
 
-      - name: 🌍 Step 2 - Detect country & city, generate top10
+      - name: 🌍 Step 2 - Detect country & city, generate final lists
         run: python detect.py
 
       - name: 📤 Commit and push IP results
@@ -36,5 +33,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add ipv4.txt ipv6.txt
-          git diff --cached --quiet || git commit -m "Updated at ${update_version}"
+          git diff --cached --quiet || git commit -m "Update IP lists at $(TZ=UTC-8 date +'%Y-%m-%d %H:%M:%S')"
           git push
